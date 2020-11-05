@@ -19,7 +19,7 @@ func cleanupFunctionForDriver(d driver.Driver) func(driverConnection) error {
 
 func pqCleanup(c driverConnection) error {
 	// Reset all sequences to 1 https://www.postgresql.org/docs/8.2/functions-sequence.html
-	// TODO: need to take into account maximum ids that wre inserted before the transaction
+	// TODO: need to take into account maximum ids that were inserted before the transaction
 	rows, err := c.Query(`
 SELECT SETVAL(c.oid, 1, false)
 FROM pg_class c
