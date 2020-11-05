@@ -1,0 +1,9 @@
+version: '3.8'
+services:
+  mysql:
+    image: mysql
+    environment:
+      MYSQL_ALLOW_EMPTY_PASSWORD: "true"
+      MYSQL_ROOT_HOST: "%"
+    ports:
+    - "127.0.0.1:14123:3306"

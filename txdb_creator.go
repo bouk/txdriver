@@ -42,10 +42,12 @@ func FromConnector(ctx context.Context, connector driver.Connector) (*Transactio
 		return nil, errIncompatibleDriver
 	}
 
+	driver := connector.Driver()
 	c := make(chan *connection, 1)
 	txDriverConn := &connection{
 		Connection: conn,
 		c:          c,
+		cleanup:    cleanupFunctionForDriver(driver),
 	}
 
 	// setup will insert the conn into the channel
@@ -55,7 +57,7 @@ func FromConnector(ctx context.Context, connector driver.Connector) (*Transactio
 
 	creator := &TransactionDBCreator{
 		c:      c,
-		driver: connector.Driver(),
+		driver: driver,
 	}
 	return creator, nil
 }
