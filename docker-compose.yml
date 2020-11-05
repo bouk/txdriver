@@ -7,3 +7,9 @@ services:
       MYSQL_ROOT_HOST: "%"
     ports:
     - "127.0.0.1:14123:3306"
+  postgres:
+    image: postgres:alpine
+    environment:
+      POSTGRES_HOST_AUTH_METHOD: trust
+    ports:
+    - "127.0.0.1:14125:5432"
