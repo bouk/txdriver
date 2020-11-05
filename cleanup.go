@@ -7,7 +7,7 @@ import (
 	"reflect"
 )
 
-func cleanupFunctionForDriver(d driver.Driver) func(Connection) error {
+func cleanupFunctionForDriver(d driver.Driver) func(driverConnection) error {
 	name := reflect.TypeOf(d).Elem().Name()
 	switch name {
 	case "MySQLDriver":
@@ -17,7 +17,7 @@ func cleanupFunctionForDriver(d driver.Driver) func(Connection) error {
 	}
 }
 
-func mysqlCleanup(c Connection) error {
+func mysqlCleanup(c driverConnection) error {
 	// Reset AUTO_INCREMENT for all the tables that were changed
 	rows, err := c.Query(`SELECT TABLE_NAME
 	FROM information_schema.tables

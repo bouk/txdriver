@@ -32,8 +32,8 @@ func (t *txConnector) Connect(ctx context.Context) (driver.Conn, error) {
 	return conn, nil
 }
 
-// Connection is the interface that drivers need to implement
-type Connection interface {
+// driverConnection is the interface that drivers need to implement
+type driverConnection interface {
 	driver.Conn
 	driver.ConnBeginTx
 	driver.Execer
@@ -44,10 +44,10 @@ type Connection interface {
 }
 
 type connection struct {
-	Connection
+	driverConnection
 
 	// cleanup is called when recycling the connection
-	cleanup func(Connection) error
+	cleanup func(driverConnection) error
 
 	// insideTransaction specifies whether we have a savepoint
 	insideTransaction bool
@@ -60,7 +60,7 @@ type connection struct {
 }
 
 func (c *connection) setup() (err error) {
-	c.tx, err = c.Connection.BeginTx(context.Background(), driver.TxOptions{})
+	c.tx, err = c.driverConnection.BeginTx(context.Background(), driver.TxOptions{})
 	if err == nil {
 		c.c <- c
 	}
@@ -77,7 +77,7 @@ func (c *connection) Close() error {
 	}
 
 	if c.cleanup != nil {
-		if err := c.cleanup(c.Connection); err != nil {
+		if err := c.cleanup(c.driverConnection); err != nil {
 			return err
 		}
 	}

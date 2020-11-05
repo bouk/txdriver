@@ -36,7 +36,7 @@ func FromConnector(ctx context.Context, connector driver.Connector) (*Transactio
 	}
 
 	// Convert to Connection that implements the interfaces we want
-	conn, ok := driverConn.(Connection)
+	conn, ok := driverConn.(driverConnection)
 	if !ok {
 		driverConn.Close()
 		return nil, errIncompatibleDriver
@@ -45,9 +45,9 @@ func FromConnector(ctx context.Context, connector driver.Connector) (*Transactio
 	driver := connector.Driver()
 	c := make(chan *connection, 1)
 	txDriverConn := &connection{
-		Connection: conn,
-		c:          c,
-		cleanup:    cleanupFunctionForDriver(driver),
+		driverConnection: conn,
+		c:                c,
+		cleanup:          cleanupFunctionForDriver(driver),
 	}
 
 	// setup will insert the conn into the channel
