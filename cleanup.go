@@ -4,6 +4,7 @@ import (
 	"database/sql/driver"
 	"fmt"
 	"io"
+	"strings"
 )
 
 func cleanupFunctionForDriver(d driver.Driver) func(driverConnection) error {
@@ -19,17 +20,45 @@ func cleanupFunctionForDriver(d driver.Driver) func(driverConnection) error {
 
 func pqCleanup(c driverConnection) error {
 	// Reset all sequences to 1 https://www.postgresql.org/docs/8.2/functions-sequence.html
-	// TODO: need to take into account maximum ids that were inserted before the transaction
+	// This beauty is adapted from over here: https://gist.github.com/tbarbugli/5495200
+	// And also inspired from here: https://stackoverflow.com/questions/41102908/how-to-reset-all-sequences-to-1-before-database-migration-in-postgresql
 	rows, err := c.Query(`
-SELECT SETVAL(c.oid, 1, false)
-FROM pg_class c
-JOIN pg_namespace n ON n.oid = c.relnamespace 
-WHERE c.relkind = 'S' AND n.nspname = 'public'
+SELECT 'SELECT SETVAL(' ||quote_literal(S.relname)|| ', COALESCE(MAX(' ||quote_ident(C.attname)|| '), 0) + 1, false) FROM ' ||quote_ident(T.relname)|| ';'
+FROM pg_class AS S, pg_depend AS D, pg_class AS T, pg_attribute AS C
+WHERE S.relkind = 'S'
+AND S.oid = D.objid
+AND D.refobjid = T.oid
+AND D.refobjid = C.attrelid
+AND D.refobjsubid = C.attnum
+ORDER BY S.relname
 `, nil)
 	if err != nil {
 		return err
 	}
-	return rows.Close()
+
+	// This looks weird because we don't have an *sql.Conn, but rather a driver.Conn
+	queries := make([]string, 0)
+	values := make([]driver.Value, len(rows.Columns()))
+	for {
+		err := rows.Next(values)
+		if err == io.EOF {
+			break
+		}
+
+		if err != nil {
+			return err
+		}
+
+		queries = append(queries, fmt.Sprintf("%s", values[0]))
+	}
+	if len(queries) == 0 {
+		return nil
+	}
+	r, err := c.Query(strings.Join(queries, ";"), nil)
+	if err != nil {
+		return err
+	}
+	return r.Close()
 }
 
 func mysqlCleanup(c driverConnection) error {
