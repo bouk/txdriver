@@ -1,6 +1,7 @@
 package txdriver
 
 import (
+	"context"
 	"database/sql/driver"
 	"fmt"
 	"io"
@@ -19,10 +20,11 @@ func cleanupFunctionForDriver(d driver.Driver) func(driverConnection) error {
 }
 
 func pqCleanup(c driverConnection) error {
+	ctx := context.Background()
 	// Reset all sequences to 1 https://www.postgresql.org/docs/8.2/functions-sequence.html
 	// This beauty is adapted from over here: https://gist.github.com/tbarbugli/5495200
 	// And also inspired from here: https://stackoverflow.com/questions/41102908/how-to-reset-all-sequences-to-1-before-database-migration-in-postgresql
-	rows, err := c.Query(`
+	rows, err := c.QueryContext(ctx, `
 SELECT 'SELECT SETVAL(' ||quote_literal(S.relname)|| ', COALESCE(MAX(' ||quote_ident(C.attname)|| '), 0) + 1, false) FROM ' ||quote_ident(T.relname)|| ';'
 FROM pg_class AS S, pg_depend AS D, pg_class AS T, pg_attribute AS C
 WHERE S.relkind = 'S'
@@ -54,7 +56,7 @@ ORDER BY S.relname
 	if len(queries) == 0 {
 		return nil
 	}
-	r, err := c.Query(strings.Join(queries, ";"), nil)
+	r, err := c.QueryContext(ctx, strings.Join(queries, ";"), nil)
 	if err != nil {
 		return err
 	}
@@ -62,8 +64,9 @@ ORDER BY S.relname
 }
 
 func mysqlCleanup(c driverConnection) error {
+	ctx := context.Background()
 	// Reset AUTO_INCREMENT for all the tables that were changed
-	rows, err := c.Query(`
+	rows, err := c.QueryContext(ctx, `
 SELECT TABLE_NAME
 FROM information_schema.tables
 WHERE TABLE_SCHEMA=DATABASE() AND AUTO_INCREMENT>1`, nil)
@@ -89,7 +92,7 @@ WHERE TABLE_SCHEMA=DATABASE() AND AUTO_INCREMENT>1`, nil)
 	}
 
 	for _, name := range names {
-		if _, err := c.Exec(fmt.Sprintf("ALTER TABLE `%s` AUTO_INCREMENT = 1;", name), nil); err != nil {
+		if _, err := c.ExecContext(ctx, fmt.Sprintf("ALTER TABLE `%s` AUTO_INCREMENT = 1;", name), nil); err != nil {
 			return err
 		}
 	}

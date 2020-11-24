@@ -36,10 +36,8 @@ func (t *txConnector) Connect(ctx context.Context) (driver.Conn, error) {
 type driverConnection interface {
 	driver.Conn
 	driver.ConnBeginTx
-	driver.Execer
 	driver.ExecerContext
 	driver.Pinger
-	driver.Queryer
 	driver.QueryerContext
 }
 
@@ -110,7 +108,7 @@ func (c *connection) Commit() error {
 	}
 	c.insideTransaction = false
 
-	_, err := c.Exec("RELEASE SAVEPOINT txdriver_transaction", nil)
+	_, err := c.ExecContext(context.Background(), "RELEASE SAVEPOINT txdriver_transaction", nil)
 	return err
 }
 
@@ -120,6 +118,6 @@ func (c *connection) Rollback() error {
 	}
 	c.insideTransaction = false
 
-	_, err := c.Exec("ROLLBACK TO txdriver_transaction", nil)
+	_, err := c.ExecContext(context.Background(), "ROLLBACK TO txdriver_transaction", nil)
 	return err
 }
